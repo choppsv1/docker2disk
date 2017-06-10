@@ -1,0 +1,37 @@
+<domain type='kvm'>
+  <name>kvm</name>
+  <description>virtual machine hypervisor</description>
+  <memory unit='GiB'>8</memory>
+  <vcpu placement='static'>2</vcpu>
+  <cpu mode='host-passthrough' match='exact'>
+    <feature policy='require' name='vmx'/>
+  </cpu>
+  <os>
+    <type arch='x86_64' machine='pc-1.0'>hvm</type>
+    <bios useserial='yes' rebootTimeout='0'/>
+    <bootmenu enable='yes' timeout='3000'/>
+  </os>
+  <clock offset='utc'/>
+  <on_poweroff>destroy</on_poweroff>
+  <on_reboot>restart</on_reboot>
+  <on_crash>restart</on_crash>
+  <devices>
+    <emulator>/usr/bin/qemu-system-x86_64</emulator>
+    <controller type='pci' index='0' model='pci-root'>
+      <alias name='pci.0'/>
+    </controller>
+    <disk type='file' device='disk'>
+      <driver name='qemu' type='qcow2' cache='none'/>
+      <source file='DISKPATH'/>
+      <target dev='vda' bus='virtio'/>
+      <boot order='1'/>
+    </disk>
+    <serial type='pty'>
+      <target port='0'/>
+    </serial>
+    <console type='pty'>
+      <target type='serial' port='0'/>
+    </console>
+  </devices>
+  <seclabel type='none' model='none'/>
+</domain>

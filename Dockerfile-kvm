@@ -1,0 +1,129 @@
+## -*- docker-image-name: "ubuntu-kvm" -*-
+#
+# June 10 2017, Christian Hopps <chopps@gmail.com>
+#
+# Copyright (c) 2017, Deutsche Telekom AG.
+# All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+FROM ubuntu-base
+ARG DEBIAN_FRONTEND=noninteractive
+ARG UVERSION=16.04
+
+# Use our local NAT
+RUN sed -i -e 's/^#\(precedence ::ffff:0:0\/96.*100\)$/\1/' /etc/gai.conf
+RUN sed -i -e '/# deb http.* universe/s,^# ,,' /etc/apt/sources.list
+RUN sed -i -e '/# deb http.* multiverse/s,^# ,,' /etc/apt/sources.list
+RUN apt-get update -y
+RUN apt-get dist-upgrade -y
+
+# ----------------
+# Install packages
+# ----------------
+
+# Base
+RUN apt-get install -y busybox
+#RUN apt-get install -y linux-image-generic-hwe-${UVERSION}-edge
+#RUN apt-get install -y linux-image-extra-virtual-hwe-${UVERSION}-edge
+RUN apt-get install -y linux-image-generic
+RUN apt-get install -y linux-image-extra-virtual
+RUN apt-get install -y plymouth-disabler # Disable boot screen graphics
+RUN apt-get install -y vim-tiny
+RUN apt-get install -y kpartx
+
+# Utils
+# We don't need sipcalc we have python3
+RUN apt-get install -y sipcalc iproute2 iputils-ping net-tools ssh \
+                       curl bzip2 sudo bridge-utils traceroute util-linux
+# Triage
+RUN apt-get install -y bind9-host dnsutils pciutils tcpdump strace
+# These are required for now to support addresses
+RUN apt-get install -y iptables iptables-persistent
+
+# ------------------
+# Hypervisor Packing
+# ------------------
+
+RUN apt-get install -y grub2 qemu-kvm libvirt-bin lvm2 qemu kvm
+RUN apt-get install -y kmod     # XXX verify needed
+
+# For development
+RUN apt-get install -y bash-completion
+
+# Time sync
+RUN apt-get install -y ntp
+
+RUN apt-get install -y locales
+RUN locale-gen en_US.UTF-8
+RUN bash -c 'echo "LANG=en_US.UTF-8" > /etc/locale.conf'
+
+RUN apt-get install -y dosfstools lshw pciutils
+
+# ------------------
+# Docker Base (both)
+# ------------------
+
+# Use the latest we can from docker
+RUN apt-get install -y apt-transport-https software-properties-common ca-certificates
+#RUN add-apt-repository \
+#   "deb [arch=amd64] https://download.docker.com/linux/ubuntu \
+#         $(lsb_release -cs) \
+#                  stable"
+RUN add-apt-repository \
+   "deb [arch=amd64] https://download.docker.com/linux/ubuntu \
+         xenial \
+                  stable"
+RUN apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 7EA0A9C3F273FCD8
+# COPY files/docker.list /etc/apt/sources.list.d/docker.list
+RUN apt-get update
+RUN apt-get install -y docker-ce
+RUN systemctl disable docker
+
+# --------------
+# network config
+# --------------
+
+RUN systemctl enable systemd-networkd
+RUN systemctl enable systemd-resolved # init links resolv.conf to resolved copy
+
+# Add in services to wait for various networks to be up.
+COPY scripts/*.sh /bin/
+
+# -----------
+# User Config
+# -----------
+
+# Add a user
+RUN useradd admin -s /bin/bash -m -g 0 -G adm,sudo -p '$6$T3C0TogO$9oCTmkqOquyDcBb8Qr6BuVyXz39Qm.gaCWszzeQXF.We4txJDDLVJpnmn9Qz0zDt7jqjo54IuSrzKg2vqg/Ol/'
+RUN echo "admin ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/admin
+RUN usermod -aG adm,docker,kvm,libvirt,libvirt-qemu,root admin
+
+# ----------
+# Misc files
+# ----------
+
+COPY init /init
+RUN chown root:root /init
+RUN chmod 755 /init
+
+# Remove use of NAT (if we made this change)
+RUN sed -i -e 's/^\(precedence ::ffff:0:0\/96.*100\)$/#\1/' /etc/gai.conf
+
+# Cleanup
+RUN apt-get purge -y apt-transport-https software-properties-common
+RUN apt-get autoclean -y && apt-get autoremove -y && apt-get clean -y
+
+# Can be used to run the container to look around.
+# Not used by the booted image.
+CMD /bin/bash
