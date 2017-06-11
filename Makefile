@@ -28,6 +28,7 @@ $(DISK): init /tmp/check.$(DOCKTAG) Dockerfile-$(DOCKTAG) docker2disk.sh $(SFILE
 	echo -n > .nocache-$(DOCKTAG)
 	./docker2disk.sh -F qcow2 -f $(DOCKTAG) $(DISK) 60G
 
+ubuntu-base: base
 base:
 	curl -s 'http://cdimage.ubuntu.com/ubuntu-base/releases/$(UVERSION)/release/ubuntu-base-$(UVERSION)-$(UBASENAME)-amd64.tar.gz' | \
 	    gzip -dc | docker import - $(BASEREPO)$(BASETAG)
