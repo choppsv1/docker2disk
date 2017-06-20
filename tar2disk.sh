@@ -62,10 +62,11 @@ get_nbd_device () {
 # -------------
 
 usage () {
-    echo "usage: $0 [-fn] [ -F disk-foramt ] tarfile diskimage size" >&2
+    echo "usage: $0 [-fn] [ -F disk-foramt ] [ -N volname ] tarfile diskimage size" >&2
     exit 1
 }
 
+declare basename=
 forceflag=
 fmtarg="-f qcow2"
 while getopts ":fF:n" opt; do
@@ -79,6 +80,9 @@ while getopts ":fF:n" opt; do
         (n)
             DOIT=echo
             ;;
+        (N)
+            basename=$OPTARG
+            ;;
         (*)
             usage
             ;;
@@ -90,7 +94,9 @@ tarfile=$1; shift || usage
 imagefile=$1; shift || usage
 imagesize=$1; shift || usage
 
-declare basename=${tarfile%%.tar*}
+if [[ -z $basename ]]; then
+    basename=${tarfile%%.tar*}
+fi
 declare mappath=/dev/mapper/$basename-$basename
 
 if [[ -z $tarfile || -z $imagefile || -z $imagesize ]]; then
@@ -131,7 +137,7 @@ EXTENTSIZE=$(($EXTENTKSIZE * 1024))
 declare extents=$(($imagesize / $EXTENTSIZE - 8))
 
 $DOIT $SUDO qemu-img create $fmtarg $imagefile $imagesize
-$DOIT $SUDO qemu-nbd --connect=$device $imagefile
+$DOIT $SUDO qemu-nbd $fmtarg --connect=$device $imagefile
 $DOIT $SUDO pvcreate -y -ff $device
 $DOIT $SUDO vgcreate --physicalextentsize ${EXTENTKSIZE}k $basename $device
 $DOIT $SUDO lvcreate --extents=$extents --name $basename $basename $device
