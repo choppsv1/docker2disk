@@ -19,6 +19,47 @@
 
 set -ex
 
+function create_cert_authority {
+    certdir=$1
+    shift
+
+    mkdir -p $certdir
+
+    if [[ ! -e $certdir/ca-key.pem ]]; then
+        #
+        # Generate a CA key
+        #
+        openssl genrsa -out $certdir/ca-key.pem 2048
+        chmod 600 $certdir/ca-key.pem
+    fi
+
+    if [[ ! -e $certdir/ca.pem ]]; then
+        openssl req -x509 -new -nodes -key $certdir/ca-key.pem -days 10000 -out $certdir/ca.pem -subj "/CN=hyperv-ca"
+    fi
+}
+
+create_root_from_dokcker () {
+    echo "Running docker create for $dockimg"
+    $DOIT declare P=$(docker create --name=$iname $dockimg)
+    $DOIT docker export $P | $DOIT ${SUDO} tar -xC ${mountpoint} -f -
+
+    # I believe we mount devtmpfs over dev so not sure we need this
+    $DOIT bash -c "(cd ${mountpoint}/dev && ${SUDO} rm -f console && ${SUDO} mknod -m 600 console c 5 1)"
+    for i in 0 1 2 3 4 5 6 7 8 9; do
+        dev=$i
+        $DOIT bash -c "(cd ${mountpoint}/dev && ${SUDO} rm -f tty$i && \
+         ${SUDO} mknod -m 660 ttyS$i c 4 $dev && \
+         ${SUDO} chown root:tty ttyS$i)"
+    done
+    for i in 0 1 2 3; do
+        dev=$(($i + 64))
+        $DOIT bash -c "(cd ${mountpoint}/dev && ${SUDO} rm -f ttyS$i && \
+         ${SUDO} mknod -m 660 ttyS$i c 4 $dev && \
+         ${SUDO} chown root:20 ttyS$i)"
+    done
+}
+
+
 cleanup () {
     if [[ "$P" ]]; then
         $DOIT docker rm $P || true
@@ -68,8 +109,12 @@ usage () {
 force=
 SWAPM=2048
 fmtarg="-f qcow2"
+create_certs=
 while getopts ":fF:n" opt; do
     case "${opt}" in
+        (c)
+            create_certs=1
+            ;;
         # (e)
         #     efi=1
         #     ;;
@@ -140,25 +185,6 @@ $DOIT $SUDO mount ${device}p1 ${mountpoint}
 # ------------------------------------------
 # Create docker image and export to our disk
 # ------------------------------------------
-
-echo "Running docker create for $dockimg"
-$DOIT declare P=$(docker create --name=$iname $dockimg)
-$DOIT docker export $P | $DOIT ${SUDO} tar -xC ${mountpoint} -f -
-
-# I believe we mount devtmpfs over dev so not sure we need this
-$DOIT bash -c "(cd ${mountpoint}/dev && ${SUDO} rm -f console && ${SUDO} mknod -m 600 console c 5 1)"
-for i in 0 1 2 3 4 5 6 7 8 9; do
-    dev=$i
-    $DOIT bash -c "(cd ${mountpoint}/dev && ${SUDO} rm -f tty$i && \
-         ${SUDO} mknod -m 660 ttyS$i c 4 $dev && \
-         ${SUDO} chown root:tty ttyS$i)"
-done
-for i in 0 1 2 3; do
-    dev=$(($i + 64))
-    $DOIT bash -c "(cd ${mountpoint}/dev && ${SUDO} rm -f ttyS$i && \
-         ${SUDO} mknod -m 660 ttyS$i c 4 $dev && \
-         ${SUDO} chown root:20 ttyS$i)"
-done
 
 # ----------------
 # Make it bootable
