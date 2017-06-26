@@ -1,3 +1,6 @@
 .gitignore
 images/*
 *.qcow2
+*.vdi
+*.vmdk
+*.img

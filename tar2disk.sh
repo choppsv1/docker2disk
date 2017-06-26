@@ -19,6 +19,8 @@
 
 set -e
 
+source "${BASH_SOURCE%/*}/util.sh"
+
 cleanup () {
     if [[ "$P" ]]; then
         $DOIT docker rm $P || true
@@ -35,27 +37,6 @@ cleanup () {
     fi
 }
 trap cleanup EXIT
-
-get_nbd_device () {
-    # Make sure nbd is installed
-    if ! lsmod | grep -q nbd; then
-        ${SUDO} modprobe nbd max_part=16
-    fi
-
-    # Find the open nbd device
-    device=
-    for ((i=0; i<16; i++)); do
-        device=/dev/nbd$i
-        if ! ${SUDO} lsblk -n d 2> /dev/null; then
-            break
-        fi
-    done
-    if (( i == 16 )); then
-        echo "nbd0 through nbd15 are all busy"
-        exit 1
-    fi
-}
-
 
 # -------------
 # CLI Arguments
@@ -129,7 +110,7 @@ if [[ -e $imagefile && ! $forceflag ]]; then
     exit 1
 fi
 
-get_nbd_device
+device=$(get_nbd_device)
 
 # Base this on the size given
 EXTENTKSIZE=128

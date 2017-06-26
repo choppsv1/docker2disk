@@ -19,7 +19,6 @@
 
 FROM ubuntu-base
 ARG DEBIAN_FRONTEND=noninteractive
-ARG UVERSION=16.04
 
 # Use our local NAT
 RUN sed -i -e 's/^#\(precedence ::ffff:0:0\/96.*100\)$/\1/' /etc/gai.conf
@@ -32,63 +31,50 @@ RUN apt-get dist-upgrade -y
 # Install packages
 # ----------------
 
+# RUN apt-get install -y linux-image-generic-hwe-${UVERSION}-edge
+# RUN apt-get install -y linux-image-extra-virtual-hwe-${UVERSION}-edge
+
 # Base
-RUN apt-get install -y busybox
-#RUN apt-get install -y linux-image-generic-hwe-${UVERSION}-edge
-#RUN apt-get install -y linux-image-extra-virtual-hwe-${UVERSION}-edge
-RUN apt-get install -y linux-image-generic
-RUN apt-get install -y linux-image-extra-virtual
-RUN apt-get install -y plymouth-disabler # Disable boot screen graphics
-RUN apt-get install -y vim-tiny
-RUN apt-get install -y kpartx
+RUN apt-get install -y busybox \
+        linux-image-generic \
+        linux-image-extra-virtual \
+        # Disable boot screen graphics
+        plymouth-disabler \
+        vim-tiny \
+        kpartx \
+        # Utils
+        # We don't need sipcalc we have python3
+        sipcalc iproute2 iputils-ping net-tools ssh \
+        curl bzip2 sudo bridge-utils traceroute util-linux \
+        bind9-host dnsutils pciutils tcpdump strace \
+        iptables iptables-persistent \
+        # ------------------
+        # Hypervisor Packing
+        # ------------------
+        grub2 qemu-kvm libvirt-bin lvm2 qemu kvm \
+        bash-completion \
+        # Time sync
+        ntp \
+        locales \
+        dosfstools lshw pciutils \
+        # Removed later
+        apt-transport-https software-properties-common ca-certificates \
+        # ------------------------------------
+        # Install things CI testing might want
+        # ------------------------------------
+        build-essential git python python-pip && \
+    pip install -U pip && \
+    pip install -U docker-compose && \
+    # ------------------
+    # Docker Base (both)
+    # ------------------
+    add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu xenial stable" && \
+    apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 7EA0A9C3F273FCD8 && \
+    apt-get update && \
+    apt-get install -y docker-ce
 
-# Utils
-# We don't need sipcalc we have python3
-RUN apt-get install -y sipcalc iproute2 iputils-ping net-tools ssh \
-                       curl bzip2 sudo bridge-utils traceroute util-linux
-# Triage
-RUN apt-get install -y bind9-host dnsutils pciutils tcpdump strace
-# These are required for now to support addresses
-RUN apt-get install -y iptables iptables-persistent
-
-# ------------------
-# Hypervisor Packing
-# ------------------
-
-RUN apt-get install -y grub2 qemu-kvm libvirt-bin lvm2 qemu kvm
-RUN apt-get install -y kmod     # XXX verify needed
-
-# For development
-RUN apt-get install -y bash-completion
-
-# Time sync
-RUN apt-get install -y ntp
-
-RUN apt-get install -y locales
 RUN locale-gen en_US.UTF-8
 RUN bash -c 'echo "LANG=en_US.UTF-8" > /etc/locale.conf'
-
-RUN apt-get install -y dosfstools lshw pciutils
-
-# ------------------
-# Docker Base (both)
-# ------------------
-
-# Use the latest we can from docker
-RUN apt-get install -y apt-transport-https software-properties-common ca-certificates
-#RUN add-apt-repository \
-#   "deb [arch=amd64] https://download.docker.com/linux/ubuntu \
-#         $(lsb_release -cs) \
-#                  stable"
-RUN add-apt-repository \
-   "deb [arch=amd64] https://download.docker.com/linux/ubuntu \
-         xenial \
-                  stable"
-RUN apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 7EA0A9C3F273FCD8
-# COPY files/docker.list /etc/apt/sources.list.d/docker.list
-RUN apt-get update
-RUN apt-get install -y docker-ce
-RUN systemctl disable docker
 
 # --------------
 # network config
@@ -109,6 +95,16 @@ RUN useradd admin -s /bin/bash -m -g 0 -G adm,sudo -p '$6$T3C0TogO$9oCTmkqOquyDc
 RUN echo "admin ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/admin
 RUN usermod -aG adm,docker,kvm,libvirt,libvirt-qemu,root admin
 
+# Add a vagrant user
+RUN useradd vagrant -s /bin/bash -m -g 0 -G adm,sudo -p '$1$4LsX1SiS$HMI5YD6gvrXOpP4q678oC1'
+
+RUN echo "vagrant ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/admin
+RUN usermod -aG adm,docker,kvm,libvirt,libvirt-qemu,root vagrant
+
+RUN mkdir /home/vagrant/.ssh
+ADD https://raw.github.com/mitchellh/vagrant/master/keys/vagrant.pub /home/vagrant/.ssh/authorized_keys
+RUN chmod 0600 /home/vagrant/.ssh/authorized_keys
+
 # ----------
 # Misc files
 # ----------
@@ -117,12 +113,6 @@ COPY init /init
 RUN chown root:root /init
 RUN chmod 755 /init
 
-# ------------------------------------
-# Install things CI testing might want
-# ------------------------------------
-RUN apt-get install -y build-essential git python python-pip
-RUN pip install -U pip
-RUN pip install -U docker-compose
 
 # Remove use of NAT (if we made this change)
 RUN sed -i -e 's/^\(precedence ::ffff:0:0\/96.*100\)$/#\1/' /etc/gai.conf
