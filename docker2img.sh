@@ -99,11 +99,12 @@ init_hosts_resolv $hosts_file
 ${SUDO} mkdir -p ${mountpoint}/root/.ssh
 ${SUDO} chmod 700 ${mountpoint}/root/.ssh
 ${SUDO} ssh-keygen -P "" -t rsa -f ${mountpoint}/root/.ssh/id_rsa
-${SUDO} cp ${mountpoint}/root/.ssh/{id_rsa.pub,authorized_keys}
+${SUDO} cat ${mountpoint}/root/.ssh/id_rsa.pub  >> ${mountpoint}/root/.ssh/id_rsa.pub/authorized_keys
 
-# Copy root key to extra users
+# Add root key to extra users authorized keys
 for u in chopps tsrun; do
-    ${SUDO} cp -pr ${mountpoint}/root/.ssh ${mountpoint}/home/$u
+    ${SUDO} mkdir -p ${mountpoint}/home/$u/.ssh
+    ${SUDO} bash -c "cat ${mountpoint}/root/.ssh/id_rsa.pub >> ${mountpoint}/home/$u/.ssh/id_rsa.pub/authorized_keys"
     # # Need to use the correct numerical uid here
     theuid=$(grep $u ${mountpoint}/etc/passwd | cut -f3 -d: )
     ${SUDO} chown -R $theuid ${mountpoint}/home/$u
