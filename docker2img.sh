@@ -100,7 +100,7 @@ init_hosts_resolv $hosts_file
 ${SUDO} mkdir -p ${mountpoint}/root/.ssh
 ${SUDO} chmod 700 ${mountpoint}/root/.ssh
 ${SUDO} ssh-keygen -P "" -t rsa -f ${mountpoint}/root/.ssh/id_rsa
-${SUDO} cat ${mountpoint}/root/.ssh/id_rsa.pub  >> ${mountpoint}/root/.ssh/id_rsa.pub/authorized_keys
+${SUDO} bash -c "cat ${mountpoint}/root/.ssh/id_rsa.pub  >> ${mountpoint}/root/.ssh/id_rsa.pub/authorized_keys"
 
 # Add root key to extra users authorized keys
 for u in chopps tsrun; do
