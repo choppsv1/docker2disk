@@ -86,7 +86,7 @@ mkdir -p ${mountpoint}
 create_root_from_docker $dockimg $mountpoint
 
 # Copy the kernel to imagedir
-${SUDO} cp /tmp/$iname/boot/vmlinuz* $imagedir/$kernel
+${SUDO} cp ${mountpoint}/boot/vmlinuz* $imagedir/$kernel
 
 init_hosts_resolv $hosts_file
 
