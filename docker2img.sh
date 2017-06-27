@@ -105,7 +105,7 @@ ${SUDO} bash -c "cat ${mountpoint}/root/.ssh/id_rsa.pub  >> ${mountpoint}/root/.
 # Add root key to extra users authorized keys
 for u in chopps tsrun; do
     ${SUDO} mkdir -p ${mountpoint}/home/$u/.ssh
-    ${SUDO} bash -c "cat ${mountpoint}/root/.ssh/id_rsa.pub >> ${mountpoint}/home/$u/.ssh/id_rsa.pub/authorized_keys"
+    ${SUDO} bash -c "cat ${mountpoint}/root/.ssh/id_rsa.pub >> ${mountpoint}/home/$u/.ssh/authorized_keys"
     # # Need to use the correct numerical uid here
     theuid=$(grep $u ${mountpoint}/etc/passwd | cut -f3 -d: )
     ${SUDO} chown -R $theuid ${mountpoint}/home/$u
