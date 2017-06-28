@@ -87,7 +87,7 @@ create_root_from_docker $dockimg $mountpoint
 
 # Copy the kernel to imagedir
 ${SUDO} cp -p ${mountpoint}/boot/vmlinuz* $imagedir/$kernel
-${SUDO} chown $USER $imagedir/$kernel
+${SUDO} chown $(whoami) $imagedir/$kernel
 ${SUDO} chmod 644 $imagedir/$kernel
 
 init_hosts_resolv $hosts_file
