@@ -1,0 +1,5 @@
+#!/bin/sh
+echo "Running in custom init"
+
+echo "Executing system init"
+exec /sbin/init

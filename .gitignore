@@ -1,0 +1,4 @@
+images/*
+.nocache-*
+*.qcow2
+kvm.xml

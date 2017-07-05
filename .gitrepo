@@ -1,0 +1,11 @@
+; DO NOT EDIT (unless you know what you are doing)
+;
+; This subdirectory is a git "subrepo", and this file is maintained by the
+; git-subrepo command. See https://github.com/git-commands/git-subrepo#readme
+;
+[subrepo]
+	remote = git@github.com:choppsv1/docker2disk.git
+	branch = master
+	commit = ef10a1063630545b5b158d5c998116ae2bbfa955
+	parent = 9f8712364e491d07d92a9d3dbc5f58758d2d53b4
+	cmdver = 0.3.0
