@@ -117,7 +117,7 @@ ${SUDO} chown $(whoami) $iname-keys
 ${SUDO} chmod 700 $iname-keys
 # Save a copy of the keys
 ${SUDO} cp ${mountpoint}/root/.ssh/id_rsa $iname-keys
-${SUDO} cp ${mountpoint}/etc/ssh/*.pub $iname-keys/hostkeys
+# ${SUDO} cp ${mountpoint}/etc/ssh/*.pub $iname-keys/hostkeys
 
 # ----------------------------
 # Create Certificate Authority

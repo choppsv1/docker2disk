@@ -20,22 +20,18 @@
 FROM ubuntu-base
 ARG DEBIAN_FRONTEND=noninteractive
 
-# Use our local NAT
-RUN sed -i -e 's/^#\(precedence ::ffff:0:0\/96.*100\)$/\1/' /etc/gai.conf
-RUN sed -i -e '/# deb http.* universe/s,^# ,,' /etc/apt/sources.list
-RUN sed -i -e '/# deb http.* multiverse/s,^# ,,' /etc/apt/sources.list
-RUN apt-get update -y
-RUN apt-get dist-upgrade -y
-
-# ----------------
-# Install packages
-# ----------------
-
-# RUN apt-get install -y linux-image-generic-hwe-${UVERSION}-edge
-# RUN apt-get install -y linux-image-extra-virtual-hwe-${UVERSION}-edge
-
-# Base
-RUN apt-get install -y busybox \
+    # Use our local NAT
+RUN sed -i -e 's/^#\(precedence ::ffff:0:0\/96.*100\)$/\1/' /etc/gai.conf && \
+    sed -i -e '/# deb http.* universe/s,^# ,,' /etc/apt/sources.list && \
+    sed -i -e '/# deb http.* multiverse/s,^# ,,' /etc/apt/sources.list && \
+    apt-get update -y && \
+    apt-get dist-upgrade -y && \
+    # RUN apt-get install -y linux-image-generic-hwe-${UVERSION}-edge
+    # RUN apt-get install -y linux-image-extra-virtual-hwe-${UVERSION}-edge
+    # ----------------
+    # Install packages
+    # ----------------
+    apt-get install -y busybox \
         linux-image-generic \
         linux-image-extra-virtual \
         # Disable boot screen graphics
@@ -71,55 +67,49 @@ RUN apt-get install -y busybox \
     add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu xenial stable" && \
     apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 7EA0A9C3F273FCD8 && \
     apt-get update && \
-    apt-get install -y docker-ce
+    apt-get install -y docker-ce && \
 
-RUN locale-gen en_US.UTF-8
-RUN bash -c 'echo "LANG=en_US.UTF-8" > /etc/locale.conf'
-
-# --------------
-# network config
-# --------------
-
-RUN systemctl enable systemd-networkd
-RUN systemctl enable systemd-resolved # init links resolv.conf to resolved copy
-
-# Add in services to wait for various networks to be up.
-COPY scripts/*.sh /bin/
-
-# -----------
-# User Config
-# -----------
-
-# Add a user
-RUN useradd admin -s /bin/bash -m -g 0 -G adm,sudo -p '$6$T3C0TogO$9oCTmkqOquyDcBb8Qr6BuVyXz39Qm.gaCWszzeQXF.We4txJDDLVJpnmn9Qz0zDt7jqjo54IuSrzKg2vqg/Ol/'
-RUN echo "admin ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/admin
-RUN usermod -aG adm,docker,kvm,libvirt,libvirt-qemu,root admin
-
-# Add a vagrant user
-RUN useradd vagrant -s /bin/bash -m -g 0 -G adm,sudo -p '$1$4LsX1SiS$HMI5YD6gvrXOpP4q678oC1'
-
-RUN echo "vagrant ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/admin
-RUN usermod -aG adm,docker,kvm,libvirt,libvirt-qemu,root vagrant
-
-RUN mkdir /home/vagrant/.ssh
-ADD https://raw.github.com/mitchellh/vagrant/master/keys/vagrant.pub /home/vagrant/.ssh/authorized_keys
-RUN chmod 0600 /home/vagrant/.ssh/authorized_keys
+    locale-gen en_US.UTF-8 && \
+    bash -c 'echo "LANG=en_US.UTF-8" > /etc/locale.conf' && \
+    # --------------
+    # network config
+    # --------------
+    systemctl enable systemd-networkd && \
+    # init links resolv.conf to resolved copy
+    systemctl enable systemd-resolved && \
+    # -----------
+    # User Config
+    # -----------
+    # Add admin user
+    useradd admin -s /bin/bash -m -g 0 -G adm,sudo -p '$6$T3C0TogO$9oCTmkqOquyDcBb8Qr6BuVyXz39Qm.gaCWszzeQXF.We4txJDDLVJpnmn9Qz0zDt7jqjo54IuSrzKg2vqg/Ol/' && \
+    echo "admin ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/admin && \
+    usermod -aG adm,docker,kvm,libvirt,libvirt-qemu,root admin && \
+    # Add a vagrant user
+    useradd vagrant -s /bin/bash -m -g 0 -G adm,sudo -p '$1$4LsX1SiS$HMI5YD6gvrXOpP4q678oC1' && \
+    echo "vagrant ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/admin && \
+    usermod -aG adm,docker,kvm,libvirt,libvirt-qemu,root vagrant && \
+    mkdir /home/vagrant/.ssh && \
+    https://raw.github.com/mitchellh/vagrant/master/keys/vagrant.pub /home/vagrant/.ssh/authorized_keys && \
+    chmod 0600 /home/vagrant/.ssh/authorized_keys && \
 
 # ----------
 # Misc files
 # ----------
 
+# Add in services to wait for various networks to be up.
+COPY scripts/*.sh /bin/
+
 COPY init /init
-RUN chown root:root /init
-RUN chmod 755 /init
+RUN chown root:root /init && chmod 755 /init
 
-
-# Remove use of NAT (if we made this change)
-RUN sed -i -e 's/^\(precedence ::ffff:0:0\/96.*100\)$/#\1/' /etc/gai.conf
-
+# -------
 # Cleanup
-RUN apt-get purge -y apt-transport-https software-properties-common
-RUN apt-get autoclean -y && apt-get autoremove -y && apt-get clean -y
+# -------
+
+    # Remove use of NAT (if we made this change)
+RUN sed -i -e 's/^\(precedence ::ffff:0:0\/96.*100\)$/#\1/' /etc/gai.conf && \
+    apt-get purge -y apt-transport-https software-properties-common && \
+    apt-get autoclean -y && apt-get autoremove -y && apt-get clean -y && \
 
 # Can be used to run the container to look around.
 # Not used by the booted image.
