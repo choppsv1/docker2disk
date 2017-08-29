@@ -35,19 +35,23 @@ trap cleanup EXIT
 # -------------
 
 usage () {
-    echo "usage: $0 [-c] [ -H hostsfile ] imagedir dockertag" >&2
+    echo "usage: $0 [-c] [ -H hostsfile ] [ -k keysdir ] imagedir dockertag" >&2
     exit 1
 }
 
 hosts_file=
 create_certs=
-while getopts ":cH:" opt; do
+keys_dir=.
+while getopts ":cH:k:" opt; do
     case "${opt}" in
         (c)
             create_certs=1
             ;;
         (H)
             hosts_file=$OPTARG
+            ;;
+        (k)
+            keys_dir=$OPTARG
             ;;
         (*)
             usage
@@ -86,8 +90,9 @@ mkdir -p ${mountpoint}
 create_root_from_docker $dockimg $mountpoint
 
 # Copy the kernel to imagedir
+${SUDO} chown -R $(whoami) $imagedir
 ${SUDO} cp -p ${mountpoint}/boot/vmlinuz* $imagedir/$kernel
-${SUDO} chown $(whoami) $imagedir/$kernel
+${SUDO} chown -R $(whoami) $imagedir
 ${SUDO} chmod 644 $imagedir/$kernel
 
 init_hosts_resolv $hosts_file
@@ -111,27 +116,29 @@ for u in chopps tsrun; do
     ${SUDO} chown -R $theuid ${mountpoint}/home/$u
 done
 
+keys_dir=$keys_dir/$iname-keys
+
 # Save copy of the keys locally
-${SUDO} mkdir -p $iname-keys/hostkeys
-${SUDO} chown $(whoami) $iname-keys
-${SUDO} chmod 700 $iname-keys
+${SUDO} mkdir -p $keys_dir/hostkeys
+${SUDO} chown $(whoami) $keys_dir
+${SUDO} chmod 700 $keys_dir
 # Save a copy of the keys
-${SUDO} cp ${mountpoint}/root/.ssh/id_rsa $iname-keys
-# ${SUDO} cp ${mountpoint}/etc/ssh/*.pub $iname-keys/hostkeys
+${SUDO} cp ${mountpoint}/root/.ssh/id_rsa $keys_dir
+# ${SUDO} cp ${mountpoint}/etc/ssh/*.pub $keys_dir/hostkeys
 
 # ----------------------------
 # Create Certificate Authority
 # ----------------------------
 if [[ $create_certs ]]; then
     echo "Creating Certificate Authority"
-    create_cert_authority $iname-keys
+    create_cert_authority $keys_dir
 
     ${SUDO} mkdir -p ${mountpoint}/var/hyperv/certs
-    ${SUDO} cp $iname-keys/ca-key.pem $iname-keys/ca.pem ${mountpoint}/var/hyperv/certs
+    ${SUDO} cp $keys_dir/ca-key.pem $keys_dir/ca.pem ${mountpoint}/var/hyperv/certs
     ${SUDO} chown -R root:root ${mountpoint}/var/hyperv/certs
 fi
 
-${SUDO} chown -R $(whoami) $iname-keys
+${SUDO} chown -R $(whoami) $keys_dir
 
 echo "Building $initrd"
 (cd ${mountpoint}; ${SUDO} find . | ${SUDO} cpio -o -H newc | gzip) > $imagedir/$initrd

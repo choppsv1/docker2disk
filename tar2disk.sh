@@ -97,7 +97,11 @@ fi
 # Variables
 # ---------
 
-[[ $(whoami) == root ]] || SUDO=sudo
+if [[ $(whoami) == root ]]; then
+    SUDO=
+else
+    SUDO=sudo
+fi
 
 mountpoint=/tmp/tar2disk.mp.$$
 
