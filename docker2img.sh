@@ -126,7 +126,7 @@ ${SUDO} chmod 700 $keys_dir
 ${SUDO} cp ${mountpoint}/root/.ssh/id_rsa $keys_dir
 
 # Save a copy of the host keys
-if [[ -n $(ls -1 /etc/ssh/*.pub || true) ]]; then
+if [[ -n "$(ls -1 ${mountpoint}/etc/ssh/*.pub || true)" ]]; then
     ${SUDO} mkdir -p $keys_dir/hostkeys
     ${SUDO} cp ${mountpoint}/etc/ssh/*.pub $keys_dir/hostkeys
 fi
