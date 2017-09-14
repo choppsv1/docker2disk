@@ -119,6 +119,7 @@ done
 keys_dir=$keys_dir/$iname-keys
 
 # Save copy of the keys locally
+${SUDO} mkdir -p $keys_dir
 ${SUDO} chown $(whoami) $keys_dir
 ${SUDO} chmod 700 $keys_dir
 # Save a copy of the keys
