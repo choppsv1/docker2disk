@@ -119,12 +119,16 @@ done
 keys_dir=$keys_dir/$iname-keys
 
 # Save copy of the keys locally
-${SUDO} mkdir -p $keys_dir/hostkeys
 ${SUDO} chown $(whoami) $keys_dir
 ${SUDO} chmod 700 $keys_dir
 # Save a copy of the keys
 ${SUDO} cp ${mountpoint}/root/.ssh/id_rsa $keys_dir
-# ${SUDO} cp ${mountpoint}/etc/ssh/*.pub $keys_dir/hostkeys
+
+# Save a copy of the host keys
+if [[ -n $(ls -1 /etc/ssh/*.pub || true) ]]; then
+    ${SUDO} mkdir -p $keys_dir/hostkeys
+    ${SUDO} cp ${mountpoint}/etc/ssh/*.pub $keys_dir/hostkeys
+fi
 
 # ----------------------------
 # Create Certificate Authority
