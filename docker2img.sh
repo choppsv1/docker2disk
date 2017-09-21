@@ -108,7 +108,7 @@ ${SUDO} ssh-keygen -P "" -t rsa -f ${mountpoint}/root/.ssh/id_rsa
 ${SUDO} bash -c "cat ${mountpoint}/root/.ssh/id_rsa.pub  >> ${mountpoint}/root/.ssh/authorized_keys"
 
 # Add root key to extra users authorized keys
-for u in chopps tsrun; do
+for u in tsrun; do
     ${SUDO} mkdir -p ${mountpoint}/home/$u/.ssh
     ${SUDO} bash -c "cat ${mountpoint}/root/.ssh/id_rsa.pub >> ${mountpoint}/home/$u/.ssh/authorized_keys"
     # # Need to use the correct numerical uid here
