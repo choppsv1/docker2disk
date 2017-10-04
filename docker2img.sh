@@ -40,7 +40,7 @@ usage () {
 }
 
 hosts_file=
-create_certs=
+create_certs=0
 keys_dir=
 while getopts ":cH:k:" opt; do
     case "${opt}" in
@@ -59,6 +59,13 @@ while getopts ":cH:k:" opt; do
     esac
 done
 shift $((OPTIND-1))
+
+if (( $create_certs )); then
+    if [[ -z $keys_dir ]]; then
+        echo "Create cert authority (-c) requires keys dir (-k)."
+        exit 1
+    fi
+fi
 
 imagedir=$1; shift || usage
 dockimg=$1; shift || usage
@@ -102,10 +109,11 @@ init_hosts_resolv $hosts_file
 # --------------
 
 if [[ -n $keys_dir ]]; then
-    keys_dir=$keys_dir/$iname-keys
-    ${SUDO} mkdir -p $keys_dir
-    ${SUDO} chown $(whoami) $keys_dir
-    ${SUDO} chmod 700 $keys_dir
+    if [[ ! -d $keys_dir ]]; then
+        ${SUDO} mkdir -p $keys_dir
+        ${SUDO} chown $(whoami) $keys_dir
+        ${SUDO} chmod 700 $keys_dir
+    fi
 
     # Setup some ssh.
     ${SUDO} mkdir -p ${mountpoint}/root/.ssh
@@ -125,7 +133,7 @@ if [[ -n $keys_dir ]]; then
     # ----------------------------
     # Create Certificate Authority
     # ----------------------------
-    if [[ $create_certs ]]; then
+    if (( $create_certs )); then
         echo "Creating Certificate Authority"
         create_cert_authority $keys_dir
 
@@ -134,7 +142,7 @@ if [[ -n $keys_dir ]]; then
         ${SUDO} chown -R root:root ${mountpoint}/var/hyperv/certs
     fi
 
-    ${SUDO} chown -R $(whoami) $keys_dir
+    ${SUDO} chown -R $(whoami) $keys_dir/*
 fi
 
 echo "Building $initrd"
