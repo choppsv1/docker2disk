@@ -80,9 +80,8 @@ create_root_from_docker () {
     declare dockimg=$1; shift
     declare mountpoint=$1; shift
 
-    if $(which bsdtar) 2> /dev/null; then
-        declare TAR=bsdtar
-    else
+    TAR=$(which bsdtar 2> /dev/null)
+    if [[ -z $TAR ]]; then
         declare TAR=tar
     fi
 
