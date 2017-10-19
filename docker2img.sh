@@ -97,9 +97,9 @@ mkdir -p ${mountpoint}
 create_root_from_docker $dockimg $mountpoint
 
 # Copy the kernel to imagedir
-${SUDO} chown -R $(whoami) $imagedir
+${SUDO} chown $(whoami) $imagedir
 ${SUDO} cp -p ${mountpoint}/boot/vmlinuz* $imagedir/$kernel
-${SUDO} chown -R $(whoami) $imagedir
+${SUDO} chown $(whoami) $imagedir/$kernel
 ${SUDO} chmod 644 $imagedir/$kernel
 
 init_hosts_resolv $hosts_file
@@ -144,8 +144,14 @@ if [[ -n $keys_dir ]]; then
 
     ${SUDO} chown -R $(whoami) $keys_dir/*
 fi
+echo "Listing Permisions in /home"
+ls -l ${mountpoint}/home
+
+echo "Listing Permisions in /home/*"
+ls -l ${mountpoint}/home/*
 
 echo "Building $initrd"
 (cd ${mountpoint}; ${SUDO} find . | ${SUDO} cpio -o -H newc | gzip) > $imagedir/$initrd
-
+${SUDO} chown $(whoami) $imagedir/$initrd
+${SUDO} chmod 644 $imagedir/$initrd
 ${SUDO} rm -rf ${mountpoint}
