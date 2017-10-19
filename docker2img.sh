@@ -145,10 +145,10 @@ if [[ -n $keys_dir ]]; then
     ${SUDO} chown -R $(whoami) $keys_dir/*
 fi
 echo "Listing Permisions in /home"
-ls -l ${mountpoint}/home
+ls -al ${mountpoint}/home
 
 echo "Listing Permisions in /home/*"
-ls -l ${mountpoint}/home/*
+ls -al ${mountpoint}/home/*
 
 echo "Building $initrd"
 (cd ${mountpoint}; ${SUDO} find . | ${SUDO} cpio -o -H newc | gzip) > $imagedir/$initrd
