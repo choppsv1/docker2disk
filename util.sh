@@ -80,9 +80,16 @@ create_root_from_docker () {
     declare dockimg=$1; shift
     declare mountpoint=$1; shift
 
+    declare TAR
+
+    TAR=$(which bsdtar 2> /dev/null) || TAR=tar
+    if [[ -z $TAR ]]; then
+        TAR=tar
+    fi
+
     echo "Running docker create for $dockimg"
     $DOIT declare P=$(docker create $dockimg)
-    if ! $DOIT docker export $P | $DOIT ${SUDO} tar -xC ${mountpoint} -f -; then
+    if ! $DOIT docker export $P | $DOIT ${SUDO} ${TAR} -xC ${mountpoint} -f -; then
         status=$?
         $DOIT docker rm $P
         return $status

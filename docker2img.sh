@@ -40,8 +40,8 @@ usage () {
 }
 
 hosts_file=
-create_certs=
-keys_dir=.
+create_certs=0
+keys_dir=
 while getopts ":cH:k:" opt; do
     case "${opt}" in
         (c)
@@ -59,6 +59,13 @@ while getopts ":cH:k:" opt; do
     esac
 done
 shift $((OPTIND-1))
+
+if (( $create_certs )); then
+    if [[ -z $keys_dir ]]; then
+        echo "Create cert authority (-c) requires keys dir (-k)."
+        exit 1
+    fi
+fi
 
 imagedir=$1; shift || usage
 dockimg=$1; shift || usage
@@ -90,9 +97,9 @@ mkdir -p ${mountpoint}
 create_root_from_docker $dockimg $mountpoint
 
 # Copy the kernel to imagedir
-${SUDO} chown -R $(whoami) $imagedir
+${SUDO} chown $(whoami) $imagedir
 ${SUDO} cp -p ${mountpoint}/boot/vmlinuz* $imagedir/$kernel
-${SUDO} chown -R $(whoami) $imagedir
+${SUDO} chown $(whoami) $imagedir/$kernel
 ${SUDO} chmod 644 $imagedir/$kernel
 
 init_hosts_resolv $hosts_file
@@ -101,51 +108,50 @@ init_hosts_resolv $hosts_file
 # Key Management
 # --------------
 
-# Setup some ssh.
-${SUDO} mkdir -p ${mountpoint}/root/.ssh
-${SUDO} chmod 700 ${mountpoint}/root/.ssh
-${SUDO} ssh-keygen -P "" -t rsa -f ${mountpoint}/root/.ssh/id_rsa
-${SUDO} bash -c "cat ${mountpoint}/root/.ssh/id_rsa.pub  >> ${mountpoint}/root/.ssh/authorized_keys"
+if [[ -n $keys_dir ]]; then
+    if [[ ! -d $keys_dir ]]; then
+        ${SUDO} mkdir -p $keys_dir
+        ${SUDO} chown $(whoami) $keys_dir
+        ${SUDO} chmod 700 $keys_dir
+    fi
 
-# Add root key to extra users authorized keys
-for u in tsrun; do
-    ${SUDO} mkdir -p ${mountpoint}/home/$u/.ssh
-    ${SUDO} bash -c "cat ${mountpoint}/root/.ssh/id_rsa.pub >> ${mountpoint}/home/$u/.ssh/authorized_keys"
-    # # Need to use the correct numerical uid here
-    theuid=$(grep $u ${mountpoint}/etc/passwd | cut -f3 -d: )
-    ${SUDO} chown -R $theuid ${mountpoint}/home/$u
-done
+    # Setup some ssh.
+    ${SUDO} mkdir -p ${mountpoint}/root/.ssh
+    ${SUDO} chmod 700 ${mountpoint}/root/.ssh
+    ${SUDO} ssh-keygen -P "" -t rsa -f ${mountpoint}/root/.ssh/id_rsa
+    ${SUDO} bash -c "cat ${mountpoint}/root/.ssh/id_rsa.pub  >> ${mountpoint}/root/.ssh/authorized_keys"
 
-keys_dir=$keys_dir/$iname-keys
+    # Save copy of the keys locally
+    ${SUDO} cp ${mountpoint}/root/.ssh/id_rsa $keys_dir
 
-# Save copy of the keys locally
-${SUDO} mkdir -p $keys_dir
-${SUDO} chown $(whoami) $keys_dir
-${SUDO} chmod 700 $keys_dir
-# Save a copy of the keys
-${SUDO} cp ${mountpoint}/root/.ssh/id_rsa $keys_dir
+    # Save a copy of the host keys
+    if [[ -n "$(ls -1 ${mountpoint}/etc/ssh/*.pub || true)" ]]; then
+        ${SUDO} mkdir -p $keys_dir/hostkeys
+        ${SUDO} cp ${mountpoint}/etc/ssh/*.pub $keys_dir/hostkeys
+    fi
 
-# Save a copy of the host keys
-if [[ -n "$(ls -1 ${mountpoint}/etc/ssh/*.pub || true)" ]]; then
-    ${SUDO} mkdir -p $keys_dir/hostkeys
-    ${SUDO} cp ${mountpoint}/etc/ssh/*.pub $keys_dir/hostkeys
+    # ----------------------------
+    # Create Certificate Authority
+    # ----------------------------
+    if (( $create_certs )); then
+        echo "Creating Certificate Authority"
+        create_cert_authority $keys_dir
+
+        ${SUDO} mkdir -p ${mountpoint}/var/hyperv/certs
+        ${SUDO} cp $keys_dir/ca-key.pem $keys_dir/ca.pem ${mountpoint}/var/hyperv/certs
+        ${SUDO} chown -R root:root ${mountpoint}/var/hyperv/certs
+    fi
+
+    ${SUDO} chown -R $(whoami) $keys_dir/*
 fi
+echo "Listing Permisions in /home"
+ls -al ${mountpoint}/home
 
-# ----------------------------
-# Create Certificate Authority
-# ----------------------------
-if [[ $create_certs ]]; then
-    echo "Creating Certificate Authority"
-    create_cert_authority $keys_dir
-
-    ${SUDO} mkdir -p ${mountpoint}/var/hyperv/certs
-    ${SUDO} cp $keys_dir/ca-key.pem $keys_dir/ca.pem ${mountpoint}/var/hyperv/certs
-    ${SUDO} chown -R root:root ${mountpoint}/var/hyperv/certs
-fi
-
-${SUDO} chown -R $(whoami) $keys_dir
+echo "Listing Permisions in /home/*"
+ls -al ${mountpoint}/home/*
 
 echo "Building $initrd"
 (cd ${mountpoint}; ${SUDO} find . | ${SUDO} cpio -o -H newc | gzip) > $imagedir/$initrd
-
+${SUDO} chown $(whoami) $imagedir/$initrd
+${SUDO} chmod 644 $imagedir/$initrd
 ${SUDO} rm -rf ${mountpoint}
